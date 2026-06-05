@@ -328,6 +328,8 @@ li { margin-bottom: .75rem; color: var(--church-muted); }
   padding: 76px 18px 24px;
   background: rgba(9, 4, 8, .92);
   backdrop-filter: blur(12px);
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 .church-image-zoom-modal.is-open {
@@ -336,6 +338,7 @@ li { margin-bottom: .75rem; color: var(--church-muted); }
 
 body.church-zoom-open {
   overflow: hidden;
+  touch-action: none;
 }
 
 .church-zoom-stage {
@@ -344,8 +347,18 @@ body.church-zoom-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: auto;
+  overflow: hidden;
   cursor: zoom-out;
+  user-select: none;
+  touch-action: none;
+}
+
+.church-zoom-stage.is-zoomed {
+  cursor: grab;
+}
+
+.church-zoom-stage.is-dragging {
+  cursor: grabbing;
 }
 
 .church-zoom-image {
@@ -354,9 +367,12 @@ body.church-zoom-open {
   border-radius: 22px;
   border: 1px solid rgba(247,200,106,.45);
   box-shadow: 0 24px 80px rgba(0,0,0,.45);
-  transition: transform .18s ease;
+  transition: transform .12s ease;
   transform-origin: center center;
-  cursor: default;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
 }
 
 .church-zoom-close,
@@ -368,6 +384,7 @@ body.church-zoom-open {
   font-weight: 900;
   box-shadow: 0 14px 34px rgba(0,0,0,.28);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .church-zoom-close {
@@ -379,6 +396,7 @@ body.church-zoom-open {
   border-radius: 50%;
   font-size: 32px;
   line-height: 1;
+  z-index: 100001;
 }
 
 .church-zoom-tools {
@@ -388,6 +406,7 @@ body.church-zoom-open {
   display: flex;
   gap: 8px;
   align-items: center;
+  z-index: 100001;
 }
 
 .church-zoom-tools button {
