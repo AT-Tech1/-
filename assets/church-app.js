@@ -83,33 +83,24 @@
 
     function getMoveLimits() {
       const stageRect = stage.getBoundingClientRect();
-      const imageRect = zoomImage.getBoundingClientRect();
-
-      const naturalWidth = imageRect.width / scale;
-      const naturalHeight = imageRect.height / scale;
-
-      const scaledWidth = naturalWidth * scale;
-      const scaledHeight = naturalHeight * scale;
-
+      const imageWidth = zoomImage.offsetWidth * scale;
+      const imageHeight = zoomImage.offsetHeight * scale;
       return {
-        x: Math.max(0, (scaledWidth - stageRect.width) / 2),
-        y: Math.max(0, (scaledHeight - stageRect.height) / 2)
+        x: Math.max(0, (imageWidth - stageRect.width) / 2),
+        y: Math.max(0, (imageHeight - stageRect.height) / 2)
       };
-    }
-
-    function limitMove() {
-      const limits = getMoveLimits();
-      translateX = clamp(translateX, -limits.x, limits.x);
-      translateY = clamp(translateY, -limits.y, limits.y);
     }
 
     function applyTransform() {
       scale = clamp(scale, 1, 5);
+
       if (scale <= 1) {
         translateX = 0;
         translateY = 0;
       } else {
-        limitMove();
+        const limits = getMoveLimits();
+        translateX = clamp(translateX, -limits.x, limits.x);
+        translateY = clamp(translateY, -limits.y, limits.y);
       }
 
       zoomImage.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
@@ -120,7 +111,8 @@
       scale = 1;
       translateX = 0;
       translateY = 0;
-      applyTransform();
+      zoomImage.style.transform = 'translate3d(0, 0, 0) scale(1)';
+      stage.classList.remove('is-zoomed');
     }
 
     function setScale(nextScale) {
@@ -129,12 +121,20 @@
     }
 
     function openImage(img) {
-      zoomImage.src = img.currentSrc || img.src;
-      zoomImage.alt = img.alt || 'صورة مكبرة';
-      resetTransform();
       modal.classList.add('is-open');
       modal.setAttribute('aria-hidden', 'false');
       document.body.classList.add('church-zoom-open');
+
+      zoomImage.onload = function () {
+        resetTransform();
+      };
+
+      zoomImage.src = img.currentSrc || img.src;
+      zoomImage.alt = img.alt || 'صورة مكبرة';
+
+      resetTransform();
+      requestAnimationFrame(resetTransform);
+      setTimeout(resetTransform, 120);
     }
 
     function closeImage() {
@@ -175,10 +175,7 @@
         wasDragging = false;
         return;
       }
-
-      if (event.target === modal || event.target === stage) {
-        closeImage();
-      }
+      if (event.target === modal || event.target === stage) closeImage();
     });
 
     function startDrag(clientX, clientY) {
@@ -194,12 +191,9 @@
 
     function moveDrag(clientX, clientY) {
       if (!isDragging || scale <= 1) return;
-
       const dx = clientX - startX;
       const dy = clientY - startY;
-
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDragging = true;
-
       translateX = startTranslateX + dx;
       translateY = startTranslateY + dy;
       applyTransform();
@@ -214,11 +208,7 @@
       event.preventDefault();
       startDrag(event.clientX, event.clientY);
     });
-
-    window.addEventListener('mousemove', function (event) {
-      moveDrag(event.clientX, event.clientY);
-    });
-
+    window.addEventListener('mousemove', function (event) { moveDrag(event.clientX, event.clientY); });
     window.addEventListener('mouseup', endDrag);
 
     stage.addEventListener('touchstart', function (event) {
@@ -241,33 +231,16 @@
       setScale(scale + (event.deltaY < 0 ? 0.2 : -0.2));
     }, { passive: false });
 
-    window.addEventListener('resize', applyTransform);
+    window.addEventListener('resize', function () {
+      if (modal.classList.contains('is-open')) resetTransform();
+    });
 
     document.addEventListener('keydown', function (event) {
       if (!modal.classList.contains('is-open')) return;
-
       if (event.key === 'Escape') closeImage();
       if (event.key === '+' || event.key === '=') setScale(scale + 0.35);
       if (event.key === '-' || event.key === '_') setScale(scale - 0.35);
       if (event.key === '0') resetTransform();
-
-      const step = 45;
-      if (scale > 1 && event.key === 'ArrowRight') {
-        translateX += step;
-        applyTransform();
-      }
-      if (scale > 1 && event.key === 'ArrowLeft') {
-        translateX -= step;
-        applyTransform();
-      }
-      if (scale > 1 && event.key === 'ArrowUp') {
-        translateY -= step;
-        applyTransform();
-      }
-      if (scale > 1 && event.key === 'ArrowDown') {
-        translateY += step;
-        applyTransform();
-      }
     });
   }
 
