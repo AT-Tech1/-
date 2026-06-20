@@ -31,14 +31,11 @@
   }
 
   function enrichCards() {
-    document.querySelectorAll('.card').forEach((card, index) => {
-      card.style.animationDelay = `${Math.min(index * 70, 420)}ms`;
-    });
-    document.querySelectorAll('.accordion-item').forEach((item, index) => {
-      item.style.animationDelay = `${Math.min(index * 55, 420)}ms`;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll('.card, .accordion-item').forEach((item, index) => {
+      item.style.animationDelay = `${Math.min(index * 35, 180)}ms`;
     });
   }
-
 
 
   function addImageZoom() {
@@ -57,84 +54,27 @@
       <div class="church-zoom-stage">
         <img class="church-zoom-image" alt="">
       </div>`;
-
     document.body.appendChild(modal);
 
-    const stage = modal.querySelector('.church-zoom-stage');
     const zoomImage = modal.querySelector('.church-zoom-image');
     const closeBtn = modal.querySelector('.church-zoom-close');
     const zoomInBtn = modal.querySelector('.church-zoom-in');
     const zoomOutBtn = modal.querySelector('.church-zoom-out');
     const resetBtn = modal.querySelector('.church-zoom-reset');
-
     let scale = 1;
-    let translateX = 0;
-    let translateY = 0;
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let startTranslateX = 0;
-    let startTranslateY = 0;
-    let wasDragging = false;
-
-    function clamp(value, min, max) {
-      return Math.min(Math.max(value, min), max);
-    }
-
-    function getMoveLimits() {
-      const stageRect = stage.getBoundingClientRect();
-      const imageWidth = zoomImage.offsetWidth * scale;
-      const imageHeight = zoomImage.offsetHeight * scale;
-      return {
-        x: Math.max(0, (imageWidth - stageRect.width) / 2),
-        y: Math.max(0, (imageHeight - stageRect.height) / 2)
-      };
-    }
-
-    function applyTransform() {
-      scale = clamp(scale, 1, 5);
-
-      if (scale <= 1) {
-        translateX = 0;
-        translateY = 0;
-      } else {
-        const limits = getMoveLimits();
-        translateX = clamp(translateX, -limits.x, limits.x);
-        translateY = clamp(translateY, -limits.y, limits.y);
-      }
-
-      zoomImage.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
-      stage.classList.toggle('is-zoomed', scale > 1);
-    }
-
-    function resetTransform() {
-      scale = 1;
-      translateX = 0;
-      translateY = 0;
-      zoomImage.style.transform = 'translate3d(0, 0, 0) scale(1)';
-      stage.classList.remove('is-zoomed');
-    }
 
     function setScale(nextScale) {
-      scale = clamp(nextScale, 1, 5);
-      applyTransform();
+      scale = Math.min(Math.max(nextScale, 0.5), 4);
+      zoomImage.style.transform = `scale(${scale})`;
     }
 
     function openImage(img) {
+      zoomImage.src = img.currentSrc || img.src;
+      zoomImage.alt = img.alt || 'صورة مكبرة';
+      setScale(1);
       modal.classList.add('is-open');
       modal.setAttribute('aria-hidden', 'false');
       document.body.classList.add('church-zoom-open');
-
-      zoomImage.onload = function () {
-        resetTransform();
-      };
-
-      zoomImage.src = img.currentSrc || img.src;
-      zoomImage.alt = img.alt || 'صورة مكبرة';
-
-      resetTransform();
-      requestAnimationFrame(resetTransform);
-      setTimeout(resetTransform, 120);
     }
 
     function closeImage() {
@@ -142,106 +82,56 @@
       modal.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('church-zoom-open');
       zoomImage.removeAttribute('src');
-      resetTransform();
     }
 
     document.querySelectorAll('img').forEach((img) => {
       if (img.closest('.church-image-zoom-modal')) return;
+      img.loading = img.loading || 'lazy';
+      img.decoding = img.decoding || 'async';
       img.classList.add('church-clickable-image');
-      img.addEventListener('click', function () {
-        openImage(img);
-      });
+    });
+
+    document.addEventListener('click', function (event) {
+      const img = event.target.closest('img.church-clickable-image');
+      if (!img || img.closest('.church-image-zoom-modal')) return;
+      openImage(img);
     });
 
     zoomInBtn.addEventListener('click', function (event) {
       event.stopPropagation();
-      setScale(scale + 0.35);
+      setScale(scale + 0.25);
     });
 
     zoomOutBtn.addEventListener('click', function (event) {
       event.stopPropagation();
-      setScale(scale - 0.35);
+      setScale(scale - 0.25);
     });
 
     resetBtn.addEventListener('click', function (event) {
       event.stopPropagation();
-      resetTransform();
+      setScale(1);
     });
 
     closeBtn.addEventListener('click', closeImage);
 
     modal.addEventListener('click', function (event) {
-      if (wasDragging) {
-        wasDragging = false;
-        return;
+      if (event.target === modal || event.target.classList.contains('church-zoom-stage')) {
+        closeImage();
       }
-      if (event.target === modal || event.target === stage) closeImage();
-    });
-
-    function startDrag(clientX, clientY) {
-      if (scale <= 1) return;
-      isDragging = true;
-      wasDragging = false;
-      startX = clientX;
-      startY = clientY;
-      startTranslateX = translateX;
-      startTranslateY = translateY;
-      stage.classList.add('is-dragging');
-    }
-
-    function moveDrag(clientX, clientY) {
-      if (!isDragging || scale <= 1) return;
-      const dx = clientX - startX;
-      const dy = clientY - startY;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDragging = true;
-      translateX = startTranslateX + dx;
-      translateY = startTranslateY + dy;
-      applyTransform();
-    }
-
-    function endDrag() {
-      isDragging = false;
-      stage.classList.remove('is-dragging');
-    }
-
-    stage.addEventListener('mousedown', function (event) {
-      event.preventDefault();
-      startDrag(event.clientX, event.clientY);
-    });
-    window.addEventListener('mousemove', function (event) { moveDrag(event.clientX, event.clientY); });
-    window.addEventListener('mouseup', endDrag);
-
-    stage.addEventListener('touchstart', function (event) {
-      if (event.touches.length !== 1) return;
-      startDrag(event.touches[0].clientX, event.touches[0].clientY);
-    }, { passive: true });
-
-    stage.addEventListener('touchmove', function (event) {
-      if (event.touches.length !== 1 || scale <= 1) return;
-      event.preventDefault();
-      moveDrag(event.touches[0].clientX, event.touches[0].clientY);
-    }, { passive: false });
-
-    stage.addEventListener('touchend', endDrag);
-    stage.addEventListener('touchcancel', endDrag);
-
-    modal.addEventListener('wheel', function (event) {
-      if (!modal.classList.contains('is-open')) return;
-      event.preventDefault();
-      setScale(scale + (event.deltaY < 0 ? 0.2 : -0.2));
-    }, { passive: false });
-
-    window.addEventListener('resize', function () {
-      if (modal.classList.contains('is-open')) resetTransform();
     });
 
     document.addEventListener('keydown', function (event) {
       if (!modal.classList.contains('is-open')) return;
       if (event.key === 'Escape') closeImage();
-      if (event.key === '+' || event.key === '=') setScale(scale + 0.35);
-      if (event.key === '-' || event.key === '_') setScale(scale - 0.35);
-      if (event.key === '0') resetTransform();
+      if (event.key === '+' || event.key === '=') setScale(scale + 0.25);
+      if (event.key === '-' || event.key === '_') setScale(scale - 0.25);
     });
+
+    modal.addEventListener('wheel', function (event) {
+      if (!modal.classList.contains('is-open')) return;
+      event.preventDefault();
+      setScale(scale + (event.deltaY < 0 ? 0.15 : -0.15));
+    }, { passive: false });
   }
 
 
